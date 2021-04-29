@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
 import { Observable, throwError } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { catchError, map, tap } from 'rxjs/operators';
 
 import { Product } from './product';
 import { Supplier } from '../suppliers/supplier';
@@ -14,8 +14,22 @@ import { SupplierService } from '../suppliers/supplier.service';
 export class ProductService {
   private productsUrl = 'api/products';
   private suppliersUrl = this.supplierService.suppliersUrl;
-  
-  products$ =  this.http.get<Product[]>(this.productsUrl).pipe(
+
+  products$ = this.http.get<Product[]>(this.productsUrl).pipe(
+    //map(item => item * 1.5), // note this doesn't work b/c http request returns entire array, not one item at a time
+    // instead, must map the emitted array and then map each element in the array
+    // use the spread operator to implicitly copy each product's properties and values
+    // in arrow function, use parens around curly braces in order to define an object literal w/in arrow fxn body
+    map((products) =>
+      products.map(
+        (product) =>
+          ({
+            ...product,
+            price: product.price * 1.5,
+            searchKey: [product.productName],
+          } as Product)
+      )
+    ),
     tap((data) => console.log('Products: ', JSON.stringify(data))),
     catchError(this.handleError)
   );
@@ -24,7 +38,7 @@ export class ProductService {
     private http: HttpClient,
     private supplierService: SupplierService
   ) {}
-  
+
   private fakeProduct(): Product {
     return {
       id: 42,
