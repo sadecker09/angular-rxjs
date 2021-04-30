@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-import { Observable, throwError } from 'rxjs';
+import { combineLatest, Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 
 import { Product } from './product';
 import { Supplier } from '../suppliers/supplier';
 import { SupplierService } from '../suppliers/supplier.service';
+import { ProductCategoryService } from '../product-categories/product-category.service';
 
 @Injectable({
   providedIn: 'root',
@@ -16,27 +17,31 @@ export class ProductService {
   private suppliersUrl = this.supplierService.suppliersUrl;
 
   products$ = this.http.get<Product[]>(this.productsUrl).pipe(
-    //map(item => item * 1.5), // note this doesn't work b/c http request returns entire array, not one item at a time
-    // instead, must map the emitted array and then map each element in the array
-    // use the spread operator to implicitly copy each product's properties and values
-    // in arrow function, use parens around curly braces in order to define an object literal w/in arrow fxn body
-    map((products) =>
+    tap((data) => console.log('Products: ', JSON.stringify(data))),
+    catchError(this.handleError)
+  );
+
+  productsWithCategory$ = combineLatest([
+    this.products$,
+    this.productCategoryService.productCategories$,
+  ]).pipe(
+    map(([products, categories]) =>
       products.map(
         (product) =>
           ({
             ...product,
             price: product.price * 1.5,
+            category: categories.find((c) => product.categoryId === c.id).name,
             searchKey: [product.productName],
           } as Product)
       )
-    ),
-    tap((data) => console.log('Products: ', JSON.stringify(data))),
-    catchError(this.handleError)
+    )
   );
 
   constructor(
     private http: HttpClient,
-    private supplierService: SupplierService
+    private supplierService: SupplierService,
+    private productCategoryService: ProductCategoryService
   ) {}
 
   private fakeProduct(): Product {

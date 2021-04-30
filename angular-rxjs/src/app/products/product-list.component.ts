@@ -13,7 +13,7 @@ export class ProductListComponent {
   errorMessage = '';
   categories;
 
-  products$ = this.productService.products$.pipe(
+  products$ = this.productService.productsWithCategory$.pipe(
     catchError((err) => {
       this.errorMessage = err; // todo since we changed the ChangeDetectionStrategy, need to push this change
       // return of([]); // this is one option; or use EMPTY
