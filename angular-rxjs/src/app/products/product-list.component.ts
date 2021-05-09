@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
-import { combineLatest, EMPTY, Subject } from 'rxjs';
+import { BehaviorSubject, combineLatest, EMPTY, Subject } from 'rxjs';
 import { catchError, map, startWith } from 'rxjs/operators';
 import { ProductCategoryService } from '../product-categories/product-category.service';
 import { ProductService } from './product.service';
@@ -12,15 +12,11 @@ import { ProductService } from './product.service';
 export class ProductListComponent {
   pageTitle = 'Product List';
   errorMessage = '';
-  private categorySelectedSubject = new Subject<number>();
+  private categorySelectedSubject = new BehaviorSubject<number>(0);
   categorySelectedAction$ = this.categorySelectedSubject.asObservable();
   products$ = combineLatest([
     this.productService.productsWithCategory$,
-    this.categorySelectedAction$.pipe(
-      // use startWith the initialize a value; otherwise, on initial page load, the categorySelectedAction stream will not emit and so then b/c of how combineLatest works, neither will the productsWtihCategory stream
-      // another way to accomplish this would be to use BehaviorSubject instead of a Subject (see next commit)
-      startWith(0)
-    ),
+    this.categorySelectedAction$,
   ]).pipe(
     map(([products, selectedCategoryId]) =>
       products.filter((product) =>
