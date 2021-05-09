@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
-import { EMPTY } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { combineLatest, EMPTY, Subject } from 'rxjs';
+import { catchError, map, startWith } from 'rxjs/operators';
 import { ProductCategoryService } from '../product-categories/product-category.service';
 import { ProductService } from './product.service';
 
@@ -12,9 +12,21 @@ import { ProductService } from './product.service';
 export class ProductListComponent {
   pageTitle = 'Product List';
   errorMessage = '';
-  selectedCategoryId = 1;
-
-  products$ = this.productService.productsWithCategory$.pipe(
+  private categorySelectedSubject = new Subject<number>();
+  categorySelectedAction$ = this.categorySelectedSubject.asObservable();
+  products$ = combineLatest([
+    this.productService.productsWithCategory$,
+    this.categorySelectedAction$.pipe(
+      // use startWith the initialize a value; otherwise, on initial page load, the categorySelectedAction stream will not emit and so then b/c of how combineLatest works, neither will the productsWtihCategory stream
+      // another way to accomplish this would be to use BehaviorSubject instead of a Subject (see next commit)
+      startWith(0)
+    ),
+  ]).pipe(
+    map(([products, selectedCategoryId]) =>
+      products.filter((product) =>
+        selectedCategoryId ? product.categoryId === selectedCategoryId : true
+      )
+    ),
     catchError((err) => {
       this.errorMessage = err; // todo since we changed the ChangeDetectionStrategy, need to push this change
       // return of([]); // this is one option; or use EMPTY
@@ -29,16 +41,6 @@ export class ProductListComponent {
     })
   );
 
-  productsSimpleFilter$ = this.productService.productsWithCategory$.pipe(
-    map((products) =>
-      products.filter((product) =>
-        this.selectedCategoryId
-          ? product.categoryId === this.selectedCategoryId
-          : true
-      )
-    )
-  );
-
   constructor(
     private productService: ProductService,
     private productCategoryService: ProductCategoryService
@@ -49,6 +51,7 @@ export class ProductListComponent {
   }
 
   onSelected(categoryId: string): void {
-   this.selectedCategoryId = +categoryId;
+    // emimt the selected CategoryId to the stream
+    this.categorySelectedSubject.next(+categoryId);
   }
 }
