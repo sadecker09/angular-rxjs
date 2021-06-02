@@ -24,7 +24,7 @@ export class ProductListComponent {
   // Combine the action stream with the products data stream, allowing
   // us to filter the products
   products$ = combineLatest([
-    this.productService.productsWithCategory$,
+    this.productService.productsWithAdd$,
     // this action stream will emit the selected category id every
     // time the user selects a new category
     this.categorySelectedAction$,
@@ -56,6 +56,7 @@ export class ProductListComponent {
   }
 
   onAdd(): void {
-    console.log('Not yet implemented');
+    // uses a mocked object 
+    this.productService.addProduct();
   }
 }

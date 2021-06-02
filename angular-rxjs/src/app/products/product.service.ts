@@ -1,9 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-
-import { BehaviorSubject, combineLatest, Observable, throwError } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
-
+import {
+  BehaviorSubject,
+  combineLatest,
+  merge,
+  Observable,
+  Subject,
+  throwError,
+} from 'rxjs';
+import { catchError, map, scan, tap } from 'rxjs/operators';
 import { Product } from './product';
 import { Supplier } from '../suppliers/supplier';
 import { SupplierService } from '../suppliers/supplier.service';
@@ -43,12 +48,14 @@ export class ProductService {
     )
   );
 
+  // Action stream for making a product selection
   private productSelectedSubject = new BehaviorSubject<number>(0);
   productSelectedAction$ = this.productSelectedSubject.asObservable();
   selectedProductChanged(selectedProductId: number): void {
     this.productSelectedSubject.next(selectedProductId);
   }
-
+  // Combine product data stream and selection action stream to filter the
+  // products to the one selected
   selectedProduct$ = combineLatest([
     this.productsWithCategory$,
     this.productSelectedAction$,
@@ -58,6 +65,22 @@ export class ProductService {
     ),
     tap((product) => console.log('selectedProduct', product))
   );
+
+  // Action stream for adding a new product
+  private productInsertedSubject = new Subject<Product>();
+  productInsertedAction$ = this.productInsertedSubject.asObservable();
+  // Combine the product data stream and the add action stream,
+  // resulting in a new array that contains the original products plus
+  // the newly added product
+  productsWithAdd$ = merge(
+    this.productsWithCategory$,
+    this.productInsertedAction$
+  ).pipe(scan((acc: Product[], value: Product) => [...acc, value]));
+
+  addProduct(newProduct?: Product) {
+    newProduct = newProduct || this.fakeProduct();
+    this.productInsertedSubject.next(newProduct);
+  }
 
   private fakeProduct(): Product {
     return {
