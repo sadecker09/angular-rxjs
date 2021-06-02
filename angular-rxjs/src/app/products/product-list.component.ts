@@ -10,13 +10,22 @@ import { ProductService } from './product.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductListComponent {
+  constructor(
+    private productService: ProductService,
+    private productCategoryService: ProductCategoryService
+  ) {}
   pageTitle = 'Product List';
   errorMessage = '';
+  // Create action stream to react to user's selection
   private categorySelectedSubject = new BehaviorSubject<number>(0);
   categorySelectedAction$ = this.categorySelectedSubject.asObservable();
+  // Combine the action stream with the products data stream, allowing
+  // us to filter the products
   products$ = combineLatest([
     this.productService.productsWithCategory$,
-    this.categorySelectedAction$,
+    // this action stream will emit the selected category id every 
+    // time the user selects a new category
+    this.categorySelectedAction$, 
   ]).pipe(
     map(([products, selectedCategoryId]) =>
       products.filter((product) =>
@@ -37,17 +46,14 @@ export class ProductListComponent {
     })
   );
 
-  constructor(
-    private productService: ProductService,
-    private productCategoryService: ProductCategoryService
-  ) {}
+  onSelected(categoryId: string): void {
+    // Each time action occurs (user selects category),
+    // emit the selected CategoryId to the action stream
+    // this will re-execute the observable pipeline (product list re-filtered)
+    this.categorySelectedSubject.next(+categoryId);
+  }
 
   onAdd(): void {
     console.log('Not yet implemented');
-  }
-
-  onSelected(categoryId: string): void {
-    // emimt the selected CategoryId to the stream
-    this.categorySelectedSubject.next(+categoryId);
   }
 }
