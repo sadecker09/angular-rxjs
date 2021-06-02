@@ -15,7 +15,9 @@ export class ProductListComponent {
     private productCategoryService: ProductCategoryService
   ) {}
   pageTitle = 'Product List';
-  errorMessage = '';
+  private errorMessageSubject = new Subject<string>();
+  errorMessage$ = this.errorMessageSubject.asObservable();
+
   // Create action stream to react to user's selection
   private categorySelectedSubject = new BehaviorSubject<number>(0);
   categorySelectedAction$ = this.categorySelectedSubject.asObservable();
@@ -23,9 +25,9 @@ export class ProductListComponent {
   // us to filter the products
   products$ = combineLatest([
     this.productService.productsWithCategory$,
-    // this action stream will emit the selected category id every 
+    // this action stream will emit the selected category id every
     // time the user selects a new category
-    this.categorySelectedAction$, 
+    this.categorySelectedAction$,
   ]).pipe(
     map(([products, selectedCategoryId]) =>
       products.filter((product) =>
@@ -33,7 +35,7 @@ export class ProductListComponent {
       )
     ),
     catchError((err) => {
-      this.errorMessage = err; // todo since we changed the ChangeDetectionStrategy, need to push this change
+      this.errorMessageSubject.next(err);
       // return of([]); // this is one option; or use EMPTY
       return EMPTY;
     })
@@ -41,7 +43,7 @@ export class ProductListComponent {
 
   categories$ = this.productCategoryService.productCategories$.pipe(
     catchError((err) => {
-      this.errorMessage = err;
+      this.errorMessageSubject.next(err);
       return EMPTY;
     })
   );
