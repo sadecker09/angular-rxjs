@@ -8,7 +8,7 @@ import {
   Subject,
   throwError,
 } from 'rxjs';
-import { catchError, map, scan, tap } from 'rxjs/operators';
+import { catchError, map, scan, shareReplay, tap } from 'rxjs/operators';
 import { Product } from './product';
 import { Supplier } from '../suppliers/supplier';
 import { SupplierService } from '../suppliers/supplier.service';
@@ -45,7 +45,10 @@ export class ProductService {
             searchKey: [product.productName],
           } as Product)
       )
-    )
+    ),
+    // added replay here instead of in products$ so that the computation to map
+    // a product to its category doesn't need to be redone on each subscription
+    shareReplay(1)     
   );
 
   // Action stream for making a product selection
@@ -63,7 +66,8 @@ export class ProductService {
     map(([products, selectedProductId]) =>
       products.find((product) => product.id === selectedProductId)
     ),
-    tap((product) => console.log('selectedProduct', product))
+    tap((product) => console.log('selectedProduct', product)),
+    shareReplay(1)
   );
 
   // Action stream for adding a new product
