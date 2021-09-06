@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-import { throwError, Observable } from 'rxjs';
+import { throwError, Observable, of } from 'rxjs';
+import { concatMap, mergeMap, switchMap, tap } from 'rxjs/operators';
+import { Supplier } from './supplier';
 
 @Injectable({
   providedIn: 'root'
@@ -9,7 +11,45 @@ import { throwError, Observable } from 'rxjs';
 export class SupplierService {
   suppliersUrl = 'api/suppliers';
 
-  constructor(private http: HttpClient) { }
+  // processed sequentially, can anticpate final 
+  // each inner observable must complete before next one executes
+  // so in the console taps, you should see this one perform slower
+  // than mergeMap
+  suppliersWithConcatMap$ = of(1, 5, 8 )
+  .pipe(
+    tap(id => console.log('concatMap source Observable', id)), 
+    concatMap(id => this.http.get<Supplier>(`${this.suppliersUrl}/${id}`))
+  )
+
+  // basically same result as concatMap but processed in parallel 
+  // so final order not predictable
+  suppliersWithMergeMap$ = of(1, 5, 8 )
+  .pipe(
+    tap(id => console.log('mergeMap source Observable', id)), 
+    mergeMap(id => this.http.get<Supplier>(`${this.suppliersUrl}/${id}`))
+  )
+
+  // each time a new source item is emitted and mapped to a new inner observable,
+  // it unsubscribes from the prior inner observable
+  // so the result we'll see is just the last inner observable 
+  suppliersWithSwitchMap$ = of(1,5,8) 
+  .pipe(
+    tap(id => console.log('switchMap source Observable', id)), 
+    switchMap(id => this.http.get<Supplier>(`${this.suppliersUrl}/${id}`))
+  )
+
+  constructor(private http: HttpClient) { 
+  // currently not using these in the  UI, so just subscribe in the constructor for demo purposes
+    this.suppliersWithConcatMap$.subscribe(
+      item => console.log('concatMap result', item)
+    )
+    this.suppliersWithMergeMap$.subscribe(
+      item => console.log('mergeMap result', item)
+    )
+    this.suppliersWithSwitchMap$.subscribe(
+      item => console.log('switchMap result', item)
+    )
+  }
 
   private handleError(err: any): Observable<never> {
     // in a real world app, we may send the server to some remote logging infrastructure

@@ -12,11 +12,11 @@ export class ProductCategoryService {
   productCategories$ = this.http
     .get<ProductCategory[]>(this.productCategoriesUrl)
     .pipe(
-      tap((data) => console.log('categories', JSON.stringify(data))),
+      // tap((data) => console.log('categories', JSON.stringify(data))),
       shareReplay(1), // cache and replay
       catchError(this.handleError)
     );
-    
+
   constructor(private http: HttpClient) {}
 
   private handleError(err: any): Observable<never> {
