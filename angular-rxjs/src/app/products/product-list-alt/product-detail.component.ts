@@ -1,4 +1,3 @@
-import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { EMPTY, Subject } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -16,6 +15,13 @@ export class ProductDetailComponent {
   errorMessage$ = this.errorMessageSubject.asObservable();
 
   product$ = this.productService.selectedProduct$.pipe(
+    catchError((err) => {
+      this.errorMessageSubject.next(err);
+      return EMPTY;
+    })
+  );
+
+  productSuppliers$ = this.productService.selectedProductSuppliers$.pipe(
     catchError((err) => {
       this.errorMessageSubject.next(err);
       return EMPTY;

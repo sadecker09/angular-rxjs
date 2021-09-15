@@ -48,7 +48,7 @@ export class ProductService {
     ),
     // added replay here instead of in products$ so that the computation to map
     // a product to its category doesn't need to be redone on each subscription
-    shareReplay(1)     
+    shareReplay(1)
   );
 
   // Action stream for making a product selection
@@ -80,6 +80,17 @@ export class ProductService {
     this.productsWithCategory$,
     this.productInsertedAction$
   ).pipe(scan((acc: Product[], value: Product) => [...acc, value]));
+
+  selectedProductSuppliers$ = combineLatest([
+    this.selectedProduct$,
+    this.supplierService.suppliers$,
+  ]).pipe(
+    map(([selectedProduct, suppliers]) =>
+      suppliers.filter((supplier) =>
+        selectedProduct.supplierIds.includes(supplier.id)
+      )
+    )
+  );
 
   addProduct(newProduct?: Product) {
     newProduct = newProduct || this.fakeProduct();
