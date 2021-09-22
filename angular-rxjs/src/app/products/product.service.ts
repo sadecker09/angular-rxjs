@@ -3,12 +3,23 @@ import { HttpClient } from '@angular/common/http';
 import {
   BehaviorSubject,
   combineLatest,
+  from,
   merge,
   Observable,
   Subject,
   throwError,
 } from 'rxjs';
-import { catchError, map, scan, shareReplay, tap } from 'rxjs/operators';
+import {
+  catchError,
+  filter,
+  map,
+  mergeMap,
+  scan,
+  shareReplay,
+  switchMap,
+  tap,
+  toArray,
+} from 'rxjs/operators';
 import { Product } from './product';
 import { Supplier } from '../suppliers/supplier';
 import { SupplierService } from '../suppliers/supplier.service';
@@ -81,13 +92,51 @@ export class ProductService {
     this.productInsertedAction$
   ).pipe(scan((acc: Product[], value: Product) => [...acc, value]));
 
-  selectedProductSuppliers$ = combineLatest([
-    this.selectedProduct$,
-    this.supplierService.suppliers$,
-  ]).pipe(
-    map(([selectedProduct, suppliers]) =>
-      suppliers.filter((supplier) =>
-        selectedProduct.supplierIds.includes(supplier.id)
+  /* Using combineLatest to combine the selected product stream with the 
+  data stream of all suppliers.
+  selectedProduct$ stream already combines productsWithCategory stream and the 
+  productSelectedAction stream so it emits each time the user selects a product
+  (This is the "Get it all" approach; compare with the "Just in time" approach below)
+  */
+  // selectedProductSuppliers$ = combineLatest([
+  //   this.selectedProduct$,
+  //   this.supplierService.suppliers$,
+  // ]).pipe(
+  //   map(([selectedProduct, suppliers]) =>
+  //     suppliers.filter((supplier) =>
+  //       selectedProduct.supplierIds.includes(supplier.id)
+  //     )
+  //   )
+  // );
+
+
+  // This is the "Just in time" approach; compare with the "Get it all" approach above
+  // Get the data just when it is needed
+  selectedProductSuppliers$ = this.selectedProduct$.pipe(
+    // Use filter to skip the merging process if selectedProduct is undefined or null (e.g. when page first loads and user has not yet selected a product)
+    // Boolean will return false if value is false, undefined, or null
+    filter((selectedProduct) => Boolean(selectedProduct)),
+    // compare using mergeMap instead of switchMap (watch the tap's console.log); if using mergeMap and the user quickly chooses different products, you'll see a get request for each one of those. But using switchMap, the request will get canceled and switch to the latest one that the user chooses. This is more efficient and produces less network traffic
+    // switchMap will transform the selected product into an observable
+    switchMap((selectedProduct) =>
+      // use from to create an inner observable from the product's array of supplier Ids, emits each id, and completes
+      from(selectedProduct.supplierIds).pipe(
+        // each supplierid gets piped into a mergeMap; the map part transforms each supplierId
+        // into an observable returned from http get
+        // each inner observable returns one response, which is the supplier
+        // the merge part of mergeMap merges the result into a single stream but since the UI
+        // needs an array of suppliers, use toArray, so it can use the ngFor directive to iterate them for display.
+        mergeMap((supplierId) =>
+          this.http.get<Supplier>(`${this.suppliersUrl}/${supplierId}`)
+        ),
+        toArray(), // waits for all inner observables to complete before emitting the array; each individual supplier combined into a single array
+        // note that selectedProduct$ action stream doesn't complete; but the from(selectedProduct.supplierIds) creates a separate context
+        // The from creation function will create an observable stream that emits its array elements and completes
+        // since the toArray is within this context, toArray will complete
+        // This inner observable technique can also be used when encapsulating operations that could generate an error when you don't want the error to stop the outer observable. 
+        tap((suppliers) =>
+          console.log('product suppliers', JSON.stringify(suppliers))
+        )
       )
     )
   );
